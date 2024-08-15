@@ -1,4 +1,4 @@
-name: Main - Continuous Integration(CI)
+name: Build and Deploy Go
 
 on:
   push:
@@ -9,72 +9,36 @@ on:
       - main
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - name: Check Node.js version
-        run: node --version
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Check pnpm version
-        run: pnpm --version
-
-      - name: List Directories
-        run: |
-          ls -l
-          cd frontend
-          ls -l
-
-
-      - name: Install dependencies
-        run: |
-          cd backend/gem_cars
-          pnpm install
-          cd ../../frontend/admin
-          pnpm install
-          cd ../user
-          pnpm install
-
-  test:
-    needs: setup
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service:
-          - backend/gem_cars
-          - frontend/admin
-          - frontend/user
+        service: [user-service]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Set up Golang
+        uses: actions/setup-go@v4
         with:
-          node-version: '20'
+          go-version: '1.23.0'
 
-      - name: Check Node.js version
-        run: node --version
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Check pnpm version
-        run: pnpm --version
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Install dependencies
-        run: |
-          cd ${{ matrix.service }}
-          pnpm install
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build
+        run: go build -v ./...
